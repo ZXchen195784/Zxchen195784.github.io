@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>神秘</title>
+    <title>视频与音乐同步播放</title>
     <style>
         * {
             margin: 0;
@@ -81,52 +81,6 @@
         .info-bar button:active {
             transform: scale(0.96);
         }
-        /* 中央大播放按钮 */
-        .big-play-btn {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(6px);
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            color: #fff;
-            font-size: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background 0.3s, transform 0.2s;
-            z-index: 10;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
-        }
-        .big-play-btn:hover {
-            background: rgba(0, 0, 0, 0.8);
-            transform: translate(-50%, -50%) scale(1.05);
-        }
-        .big-play-btn.hidden {
-            display: none;
-        }
-        .video-container {
-            position: relative;
-            background: #000;
-            min-height: 200px;
-        }
-        .hint-text {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.9rem;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 8px 20px;
-            border-radius: 40px;
-            pointer-events: none;
-        }
         @media (max-width: 600px) {
             .info-bar {
                 flex-direction: column;
@@ -137,39 +91,22 @@
                 width: 100%;
                 justify-content: center;
             }
-            .big-play-btn {
-                width: 70px;
-                height: 70px;
-                font-size: 32px;
-            }
-            .hint-text {
-                font-size: 0.8rem;
-                bottom: 12px;
-                white-space: nowrap;
-            }
         }
     </style>
 </head>
 <body>
 
     <div class="wrapper">
-        <div class="video-container" id="videoContainer">
-            <!-- 视频：默认不自动播放 -->
-            <video
-                id="autoVideo"
-                muted
-                loop
-                playsinline
-                preload="auto"
-            >
-                <source src="yayiziyou.mp4" type="video/mp4">
-                您的浏览器不支持 HTML5 视频。
-            </video>
-
-
-            <!-- 底部提示 -->
-            <div class="hint-text" id="hintText">点击播放</div>
-        </div>
+        <video
+            id="autoVideo"
+            muted
+            loop
+            playsinline
+            preload="auto"
+        >
+            <source src="yayiziyou.mp4" type="video/mp4">
+            您的浏览器不支持 HTML5 视频。
+        </video>
 
         <div class="info-bar">
             <span>
@@ -196,20 +133,15 @@
             const togglePlayBtn = document.getElementById('togglePlayBtn');
             const btnIcon = document.getElementById('btnIcon');
             const btnText = document.getElementById('btnText');
-            const bigPlayBtn = document.getElementById('bigPlayBtn');
-            const hintText = document.getElementById('hintText');
 
             let isFirstPlay = true;
 
-            // 更新 UI 状态
             function updateUI() {
                 if (video.paused) {
                     statusDot.classList.remove('playing');
                     statusText.textContent = '已停止';
                     btnIcon.textContent = '▶️';
                     btnText.textContent = '播放';
-                    bigPlayBtn.classList.remove('hidden');
-                    hintText.style.display = 'block';
                 } else {
                     statusDot.classList.add('playing');
                     if (!audio.paused && !audio.muted) {
@@ -219,15 +151,11 @@
                     }
                     btnIcon.textContent = '⏸️';
                     btnText.textContent = '暂停';
-                    bigPlayBtn.classList.add('hidden');
-                    hintText.style.display = 'none';
                 }
             }
 
-            // 核心：同步音频与视频
             function syncAudioWithVideo() {
                 if (video.paused) return;
-                // 让音频进度对齐视频
                 if (Math.abs(audio.currentTime - video.currentTime) > 0.3) {
                     audio.currentTime = video.currentTime;
                 }
@@ -237,9 +165,7 @@
                 });
             }
 
-            // 开始播放（视频 + 音频）
             function startPlay() {
-                // 首次播放时，由于用户点击了，解除静音
                 if (isFirstPlay) {
                     video.muted = false;
                     isFirstPlay = false;
@@ -252,14 +178,12 @@
                 });
             }
 
-            // 暂停播放（视频 + 音频）
             function pausePlay() {
                 video.pause();
                 audio.pause();
                 updateUI();
             }
 
-            // 切换播放/暂停
             function togglePlay() {
                 if (video.paused) {
                     startPlay();
@@ -268,24 +192,17 @@
                 }
             }
 
-            // 中央大按钮点击
-            bigPlayBtn.addEventListener('click', startPlay);
-
-            // 底部按钮点击
             togglePlayBtn.addEventListener('click', togglePlay);
 
-            // 视频播放/暂停事件同步 UI
             video.addEventListener('play', updateUI);
             video.addEventListener('pause', updateUI);
 
-            // 视频进度跳转时同步音频
             video.addEventListener('seeked', () => {
                 if (!video.paused) {
                     audio.currentTime = video.currentTime;
                 }
             });
 
-            // 音频播放/暂停事件
             audio.addEventListener('play', updateUI);
             audio.addEventListener('pause', () => {
                 if (!video.paused) {
@@ -293,7 +210,6 @@
                 }
             });
 
-            // 初始化 UI
             updateUI();
         })();
     </script>
