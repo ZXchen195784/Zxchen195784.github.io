@@ -144,7 +144,7 @@
 <body>
 
     <div class="wrapper">
-        <!-- 视频：静音自动播放，循环。确保 src 里的文件名和你上传的视频文件名完全一致 -->
+        <!-- 视频：静音自动播放，循环。src 里的文件名必须和你上传的视频文件名完全一致 -->
         <video
             id="autoVideo"
             autoplay
@@ -168,7 +168,7 @@
         </div>
     </div>
 
-    <!-- 隐藏的 MP3：负责出声。src 已改成 78.mp3 -->
+    <!-- 隐藏的 MP3：负责出声。src 里必须是 78.mp3 -->
     <audio id="bgMusic" autoplay loop>
         <source src="78.mp3" type="audio/mpeg">
     </audio>
@@ -208,56 +208,76 @@
                 }
             }
 
-            // 尝试让音频播放（如果被拦截，显示提示）
-            function tryPlayAudio() {
-                audio.muted = false;
+            // 核心：让音频紧跟视频，实现同步
+            function syncAudioWithVideo() {
+                if (video.paused) return;
+                // 让音频的播放进度对齐视频
+                if (Math.abs(audio.currentTime - video.currentTime) > 0.3) {
+                    audio.currentTime = video.currentTime;
+                }
                 audio.play().then(() => {
                     autoplayHint.classList.remove('show');
                     updateUI();
                 }).catch(err => {
-                    console.warn('音频播放被拦截:', err);
+                    console.warn('音频自动播放被拦截，需要用户点击页面:', err);
                     autoplayHint.classList.add('show');
                 });
             }
 
-            // 核心：同步视频和音频的播放与暂停
-            function togglePlay() {
+            // 视频开始播放时，立刻同步音频
+            video.addEventListener('play', () => {
+                syncAudioWithVideo();
+                updateUI();
+            });
+
+            // 视频暂停时，音频也暂停
+            video.addEventListener('pause', () => {
+                audio.pause();
+                updateUI();
+            });
+
+            // 视频在播放中如果发生跳转（比如拖动进度条），音频也跟着跳
+            video.addEventListener('seeked', () => {
+                if (!video.paused) {
+                    audio.currentTime = video.currentTime;
+                }
+            });
+
+            // 音频播放/暂停时更新 UI
+            audio.addEventListener('play', () => {
+                autoplayHint.classList.remove('show');
+                updateUI();
+            });
+            audio.addEventListener('pause', () => {
+                if (!video.paused) {
+                    autoplayHint.classList.add('show');
+                }
+                updateUI();
+            });
+
+            // 按钮点击：同时控制视频和音频
+            togglePlayBtn.addEventListener('click', () => {
                 if (video.paused) {
                     video.play().catch(e => console.log('视频播放失败:', e));
-                    tryPlayAudio();
+                    syncAudioWithVideo();
                 } else {
                     video.pause();
                     audio.pause();
                 }
                 updateUI();
-            }
-
-            // 监听视频播放/暂停，同步更新 UI
-            video.addEventListener('play', updateUI);
-            video.addEventListener('pause', updateUI);
-            audio.addEventListener('pause', () => {
-                if (!video.paused) {
-                    autoplayHint.classList.add('show');
-                }
-            });
-            audio.addEventListener('play', () => {
-                autoplayHint.classList.remove('show');
-                updateUI();
             });
 
-            // 按钮点击事件
-            togglePlayBtn.addEventListener('click', togglePlay);
-
-            // 浏览器策略：首次用户点击页面任意位置，尝试播放声音
+            // 用户首次点击页面任意位置，尝试让音频出声
             document.body.addEventListener('click', function() {
                 if (audio.paused || audio.muted) {
-                    tryPlayAudio();
+                    audio.muted = false;
+                    syncAudioWithVideo();
                 }
             }, { once: true });
 
-            // 页面加载后，主动尝试播放一次音频
+            // 页面加载时先尝试同步一次
             window.addEventListener('load', () => {
-                tryPlayAudio();
+                syncAudioWithVideo();
                 updateUI();
             });
 
