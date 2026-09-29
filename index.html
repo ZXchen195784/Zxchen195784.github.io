@@ -1,22 +1,270 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>自动播放 MP4 视频</title>
-  <style>
-    /* 这里放的是网页的样式（背景、大小、按钮长什么样） */
-    body { background: #0b0b0b; }
-    video { width: 100%; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频与音乐同步播放</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0b0b0b;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            padding: 16px;
+        }
+        .wrapper {
+            max-width: 1200px;
+            width: 100%;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            background: #000;
+        }
+        video {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 85vh;
+            object-fit: contain;
+            background: #000;
+            outline: none;
+        }
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #1a1a1a;
+            color: #ddd;
+            font-size: 0.9rem;
+            border-top: 1px solid #2a2a2a;
+        }
+        .info-bar span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+            transition: background 0.3s;
+        }
+        .status-dot.paused {
+            background: #ff9800;
+        }
+        .info-bar button {
+            background: #2c2c2c;
+            border: 1px solid #3a3a3a;
+            color: #eee;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .info-bar button:hover {
+            background: #3a3a3a;
+        }
+        .info-bar button:active {
+            transform: scale(0.96);
+        }
+        .autoplay-hint {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.9);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 60px;
+            font-size: 0.95rem;
+            border: 1px solid #444;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .autoplay-hint.show {
+            opacity: 1;
+        }
+        .autoplay-hint button {
+            background: #4a6fa5;
+            border: none;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            pointer-events: auto;
+            font-size: 0.85rem;
+        }
+        .autoplay-hint button:hover {
+            background: #5f7fb0;
+        }
+        @media (max-width: 600px) {
+            .info-bar {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+            .info-bar button {
+                width: 100%;
+                justify-content: center;
+            }
+            .autoplay-hint {
+                white-space: normal;
+                text-align: center;
+                flex-direction: column;
+                width: calc(100% - 32px);
+                bottom: 16px;
+                padding: 16px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <!-- 这里放的是网页上的实际内容 -->
-  <video autoplay muted loop playsinline>
-    <source src="yayiziyou.mp4" type="video/mp4">
-  </video>
 
-  <script>
-    // 这里放的是控制视频播放、暂停的代码
-  </script>
+    <div class="wrapper">
+        <!-- 视频：静音自动播放，循环。确保 src 里的文件名和你上传的视频文件名完全一致 -->
+        <video
+            id="autoVideo"
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="auto"
+        >
+            <source src="yayiziyou.mp4" type="video/mp4">
+            您的浏览器不支持 HTML5 视频。
+        </video>
+
+        <div class="info-bar">
+            <span>
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">正在播放 (静音)</span>
+            </span>
+            <button id="togglePlayBtn">
+                <span id="btnIcon">⏸️</span> <span id="btnText">暂停</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 隐藏的 MP3：负责出声。src 已改成 78.mp3 -->
+    <audio id="bgMusic" autoplay loop>
+        <source src="78.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- 自动播放被拦截时的提示 -->
+    <div class="autoplay-hint" id="autoplayHint">
+        <span>🔇 点一下页面，声音就出来了</span>
+    </div>
+
+    <script>
+        (function() {
+            const video = document.getElementById('autoVideo');
+            const audio = document.getElementById('bgMusic');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const togglePlayBtn = document.getElementById('togglePlayBtn');
+            const btnIcon = document.getElementById('btnIcon');
+            const btnText = document.getElementById('btnText');
+            const autoplayHint = document.getElementById('autoplayHint');
+
+            // 同步更新 UI 状态
+            function updateUI() {
+                if (video.paused) {
+                    statusDot.classList.add('paused');
+                    statusText.textContent = '已暂停';
+                    btnIcon.textContent = '▶️';
+                    btnText.textContent = '播放';
+                } else {
+                    statusDot.classList.remove('paused');
+                    if (!audio.paused && !audio.muted) {
+                        statusText.textContent = '正在播放 (有声音)';
+                    } else {
+                        statusText.textContent = '正在播放 (静音)';
+                    }
+                    btnIcon.textContent = '⏸️';
+                    btnText.textContent = '暂停';
+                }
+            }
+
+            // 尝试让音频播放（如果被拦截，显示提示）
+            function tryPlayAudio() {
+                audio.muted = false;
+                audio.play().then(() => {
+                    autoplayHint.classList.remove('show');
+                    updateUI();
+                }).catch(err => {
+                    console.warn('音频播放被拦截:', err);
+                    autoplayHint.classList.add('show');
+                });
+            }
+
+            // 核心：同步视频和音频的播放与暂停
+            function togglePlay() {
+                if (video.paused) {
+                    video.play().catch(e => console.log('视频播放失败:', e));
+                    tryPlayAudio();
+                } else {
+                    video.pause();
+                    audio.pause();
+                }
+                updateUI();
+            }
+
+            // 监听视频播放/暂停，同步更新 UI
+            video.addEventListener('play', updateUI);
+            video.addEventListener('pause', updateUI);
+            audio.addEventListener('pause', () => {
+                if (!video.paused) {
+                    autoplayHint.classList.add('show');
+                }
+            });
+            audio.addEventListener('play', () => {
+                autoplayHint.classList.remove('show');
+                updateUI();
+            });
+
+            // 按钮点击事件
+            togglePlayBtn.addEventListener('click', togglePlay);
+
+            // 浏览器策略：首次用户点击页面任意位置，尝试播放声音
+            document.body.addEventListener('click', function() {
+                if (audio.paused || audio.muted) {
+                    tryPlayAudio();
+                }
+            }, { once: true });
+
+            // 页面加载后，主动尝试播放一次音频
+            window.addEventListener('load', () => {
+                tryPlayAudio();
+                updateUI();
+            });
+
+            // 初始化状态
+            updateUI();
+        })();
+    </script>
+
 </body>
 </html>
